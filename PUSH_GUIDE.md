@@ -1,5 +1,11 @@
 # GitHub 推送指南（3 分钟完成）
 
+> **状态：已完成（2026-10-29 23:37）**
+> 仓库已上线：https://github.com/cho1eeee/spacex-capstone
+> 79 个文件已推送，8 个带输出 notebook、2 个 PDF、12 张图表、4 个地图。
+> 后续如果修改了文件，直接执行 `python scripts/13_push_via_api.py` 即可增量推送
+> （只上传内容有变化的文件，需要 token.txt 里有可用 token）。
+
 项目已初始化好本地 Git 仓库（`spacex-capstone/`，main 分支，已提交全部文件）。
 只需再走 3 步即可上线，并把报告中的 GitHub URL 换成真实地址。
 

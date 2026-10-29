@@ -125,9 +125,29 @@ def main():
             sys.exit(4)
         print("bootstrap     : ok")
 
-    # 1) blobs
+    # 1) blobs (only files whose content differs from what is already remote)
+    remote_sha = {}
+    base_tree = None
+    status, rtree = api(f"/repos/{OWNER}/{REPO}/git/trees/{BRANCH}?recursive=1", token)
+    if status == 200 and not rtree.get("truncated"):
+        base_tree = rtree["sha"]
+        remote_sha = {i["path"]: i["sha"] for i in rtree.get("tree", [])
+                      if i.get("type") == "blob"}
+        print(f"remote tree   : {base_tree} ({len(remote_sha)} files)")
+
+    def local_blob_sha(rel):
+        out = subprocess.run(["git", "hash-object", rel], cwd=BASE,
+                             capture_output=True, check=True).stdout
+        return out.decode().strip()
+
     tree_items = []
+    skipped = 0
     for idx, rel in enumerate(files, 1):
+        relposix = rel.replace("\\", "/")
+        lsha = local_blob_sha(rel)
+        if remote_sha.get(relposix) == lsha:
+            skipped += 1
+            continue
         with open(os.path.join(BASE, rel), "rb") as fh:
             content = base64.b64encode(fh.read()).decode()
         status, blob = api(f"/repos/{OWNER}/{REPO}/git/blobs", token, "POST",
@@ -135,13 +155,27 @@ def main():
         if status not in (200, 201):
             print(f"[!] blob failed for {rel} (HTTP {status}): {blob}")
             sys.exit(5)
-        tree_items.append({"path": rel.replace("\\", "/"), "mode": "100644",
+        tree_items.append({"path": relposix, "mode": "100644",
                            "type": "blob", "sha": blob["sha"]})
         print(f"  [{idx}/{len(files)}] blob {blob['sha'][:8]}  {rel}")
 
+    # drop remote files that no longer exist locally
+    for path in remote_sha:
+        if path not in {f.replace("\\", "/") for f in files}:
+            tree_items.append({"path": path, "mode": "100644",
+                               "type": "blob", "sha": None})
+            print(f"  delete  {path}")
+
+    print(f"unchanged     : {skipped} files, {len(tree_items)} to send")
+    if not tree_items:
+        print("\nSUCCESS (already up to date)")
+        return
+
     # 2) tree
-    status, tree = api(f"/repos/{OWNER}/{REPO}/git/trees", token, "POST",
-                       {"tree": tree_items})
+    tree_payload = {"tree": tree_items}
+    if base_tree:
+        tree_payload["base_tree"] = base_tree
+    status, tree = api(f"/repos/{OWNER}/{REPO}/git/trees", token, "POST", tree_payload)
     if status not in (200, 201):
         print(f"[!] tree failed (HTTP {status}): {tree}")
         sys.exit(6)
