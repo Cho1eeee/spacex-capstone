@@ -1,0 +1,6 @@
+Proximity analysis for KSC LC 39A (lat 28.6081, lon -80.6040)
+
+Coastline (nearest): 10.57 km
+Railway (NASA Causeway rail): 4.33 km
+Highway (FL-401): 20.59 km
+Titusville (nearest city): 19.87 km
